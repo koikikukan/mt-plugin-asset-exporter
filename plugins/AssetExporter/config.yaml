@@ -1,0 +1,26 @@
+id: AssetExporter
+name: AssetExporter
+author_link: http://www.koikikukan.com/
+author_name: Yujiro Araki
+plugin_link: http://www.koikikukan.com/archives/2010/xx/xx-015555.php
+doc_link: http://www.koikikukan.com/archives/2010/xx/xx-015555.php
+description: <__trans phrase="AssetExporter.">
+version: 0.01
+l10n_lexicon:
+    ja:
+        AssetExporter.: アイテムをテーマにエクスポートします
+        Assets: アイテム
+        Failed to make assets directory [_1]: アイテム用のディレクトリの作成に失敗しました [_1]
+        Failed to publish asset file [_1]: アイテムファイルのエクスポートに失敗しました [_1]
+        [_1] assets: [_1] アイテム
+theme_element_handlers:
+    default_assets:
+        label: Assets
+        importer:
+            import: $AssetExporter::AssetExporter::Theme::import
+            info: $AssetExporter::AssetExporter::Theme::info
+        exporter:
+            params: plugin_default_assets_export_ids
+            template: $AssetExporter::AssetExporter::Theme::template
+            export: $AssetExporter::AssetExporter::Theme::export
+            finalize:  $AssetExporter::AssetExporter::Theme::finalize

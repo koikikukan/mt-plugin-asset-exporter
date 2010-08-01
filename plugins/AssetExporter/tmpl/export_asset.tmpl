@@ -1,0 +1,23 @@
+<mtapp:listing id="assets" loop="assets" hide_pager="1" show_actions="0" type="assets">
+    <mt:if __first__>
+        <thead>
+            <tr>
+                <th class="cb"><input type="checkbox" name="id-head" value="all" class="select" /></th>
+                <th class="field-name primary-col"><__trans phrase="Name"></th>
+            </tr>
+        </thead>
+        <tbody>
+    </mt:if>
+            <tr class="<mt:if name="__odd__">odd<mt:else>even</mt:if>">
+                <td class="cb">
+                    <input type="checkbox" name="plugin_default_assets_export_ids" class="select" value="<mt:var name="asset_id">" <mt:if checked>checked="checked" </mt:if>/>
+                </td>
+                <td class="field-name"><mt:var name="asset_label" escape="html"></td>
+            </tr>
+    <mt:if __last__>
+        </tbody>
+    </mt:if>
+</mtapp:listing>
+<script type="text/javascript">
+jQuery.mtCheckbox();
+</script>
