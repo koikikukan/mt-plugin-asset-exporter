@@ -199,7 +199,8 @@ sub info {
 
     my $plugin = MT->component('AssetExporter');
     return sub {
-        $plugin->translate( '[_1] assets', scalar keys %{$element->{data}{assets}} );
+        $plugin->translate( '[_1] ', scalar keys %{$element->{data}{assets}} ).
+        $plugin->translate( 'Assets' );
     };
 }
 

@@ -12,7 +12,6 @@ l10n_lexicon:
         Assets: アイテム
         Failed to make assets directory [_1]: アイテム用のディレクトリの作成に失敗しました [_1]
         Failed to publish asset file [_1]: アイテムファイルのエクスポートに失敗しました [_1]
-        [_1] assets: [_1] アイテム
 theme_element_handlers:
     default_assets:
         label: Assets
