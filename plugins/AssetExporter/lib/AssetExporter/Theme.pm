@@ -171,13 +171,22 @@ sub _add_assets {
     for my $basename ( keys %$assets ) {
         my $asset = $assets->{$basename};
 
-        next if MT->model($class)->count({
-            label => $asset->{label},
-            blog_id  => $blog->id,
-            class    => '*'
-        });
+#        next if MT->model($class)->count({
+#            label => $asset->{label},
+#            blog_id  => $blog->id,
+#            class    => '*'
+#        });
+
+        # 同一パスのファイルが存在する場合、スキップ
+        my $file_path;
+        if ($use_original_path) {
+            $file_path =  '%r/' . $asset->{asset_path} .'/' . $asset->{file_name};
+        } else {
+            $file_path =  '%r/' . $base_path .'/' . $asset->{file_name};
+        }
         next if MT->model($class)->count({
             file_name => $asset->{file_name},
+            file_path => $file_path,
             blog_id  => $blog->id,
             class    => '*'
         });
