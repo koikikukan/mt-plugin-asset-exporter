@@ -38,6 +38,28 @@ sub template {
     return $plugin->load_tmpl('export_asset.tmpl', \%param);
 }
 
+sub _generate_path {
+
+    my ( $site_path, $asset_path ) = @_;
+
+    # サイトパスを取得
+    my ($site_volume, $site_directories, $site_file) = File::Spec->splitpath( $site_path );
+    $site_directories .= $site_file;
+    if ($site_directories =~ /\\/) {
+        $site_directories =~ s!\\!/!g;
+    }
+
+    # アイテムのパスを取得
+    my ($asset_volume, $asset_directories, $asset_file) = File::Spec->splitpath( $asset_path );
+    if ($asset_directories =~ /\\/) {
+        $asset_directories =~ s!\\!/!g;
+    }
+    $asset_directories =~ s!$site_directories!!;
+    $asset_directories =~ s!^/!!;
+    $asset_directories =~ s!/$!!;
+    return $asset_directories;
+}
+
 sub export {
     my ( $app, $blog, $settings ) = @_;
     my @assets;
@@ -51,6 +73,10 @@ sub export {
 
     my $data = {};
     for my $asset ( @assets ) {
+
+        # インポート時のパスを生成
+        my $asset_directories = _generate_path($blog->site_path, $asset->file_path);
+
         my $hash = {
             label => $asset->label,
             description => $asset->description,
@@ -63,6 +89,7 @@ sub export {
             file_ext => $asset->file_ext,
             file_name => $asset->file_name,
             file_path => $asset->file_path,
+            asset_path => $asset_directories,
             url => $asset->url,
             parent => $asset->parent,
         };
@@ -88,19 +115,20 @@ sub finalize {
     require MT::FileMgr;
     my $fmgr = MT::FileMgr->new('Local');
 
-    # 一時ディレクトリに'assets'作成
-    my $outdir = File::Spec->catdir( $tmpdir, 'assets' );
-    $fmgr->mkpath( $outdir )
-        or return $app->error(
-            $app->translate(
-                'Failed to make assets directory [_1]',
-                $fmgr->errstr,
-        ));
-
     for my $basename ( keys %$assets ) {
         my $asset = $assets->{$basename};
 
-        # 出力先ディレクトリにファイル名作成
+        # 一時ディレクトリに'assets/パス'を作成
+        my $asset_directories = _generate_path($blog->site_path, $asset->{file_path});
+        my $outdir = File::Spec->catdir( $tmpdir, 'assets', $asset_directories );
+        $fmgr->mkpath( $outdir )
+            or return $app->error(
+                $app->translate(
+                    'Failed to make assets directory [_1]',
+                    $fmgr->errstr,
+            ));
+
+        # 一時ディレクトリにファイル名作成
         my $path = File::Spec->catfile( $outdir, $asset->{file_name} );
 
         # 出力先ディレクトリにファイル出力
@@ -132,7 +160,10 @@ sub import {
 
 sub _add_assets {
     my ( $theme, $blog, $assets, $base_path, $class ) = @_;
+
     my $app = MT->instance;
+    my $plugin = MT->component('AssetExporter');
+    my $use_original_path = $plugin->get_config_value('use_original_path', 'blog:' . $app->blog->id);
 
     require MT::FileMgr;
     my $fmgr = MT::FileMgr->new('Local');
@@ -155,26 +186,36 @@ sub _add_assets {
         $obj->blog_id( $blog->id );
         $obj->class( $asset->{class} );
         $obj->label( $asset->{label} );
-#my $url = $blog->site_url . '/' . $base_path . '/' . $asset->{file_name};
-#my $site_url = $blog->site_url;
-#$url =~ s/$site_url/%r/;
-        $obj->url( '%r/' . $base_path . '/' . $asset->{file_name} );
+
+        # URL
+        if ($use_original_path) {
+            $obj->url( '%r/' . $asset->{asset_path} . '/' . $asset->{file_name} );
+        } else {
+            $obj->url( '%r/' . $base_path . '/' . $asset->{file_name} );
+        }
         $obj->description( $asset->{description} );
 
-#my $path = $blog->site_path . '/' . $base_path .'/' . $asset->{file_name};
-#my $site_path = $blog->site_path;
-#$path =~ s/$site_path/%r/;
-        $obj->file_path( '%r/' . $base_path .'/' . $asset->{file_name} );
+        # パス
+        if ($use_original_path) {
+            $obj->file_path( '%r/' . $asset->{asset_path} .'/' . $asset->{file_name} );
+        } else {
+            $obj->file_path( '%r/' . $base_path .'/' . $asset->{file_name} );
+        }
         $obj->file_name( $asset->{file_name} );
         $obj->file_ext( $asset->{file_ext} );
         $obj->mime_type( $asset->{mime_type} );
         $obj->save or die $obj->errstr;
 
         # 出力先のディレクトリ(assets)作成
-        my $outdir = File::Spec->catdir( $blog->site_path, 'assets' );
+        my $outdir;
+        if ($use_original_path) {
+            $outdir = File::Spec->catdir( $blog->site_path, $asset->{asset_path} );
+        } else {
+            $outdir = File::Spec->catdir( $blog->site_path, 'assets' );
+        }
         $fmgr->mkpath( $outdir )
             or return $app->error(
-                $app->translate(
+                $plugin->translate(
                     'Failed to make assets directory [_1]',
                     $fmgr->errstr,
             ));
@@ -183,9 +224,10 @@ sub _add_assets {
         my $path = File::Spec->catfile( $outdir, $asset->{file_name} );
 
         # 出力先ディレクトリにファイル出力
-        defined $fmgr->put( $theme->path. '/' . $base_path . '/' .$asset->{file_name}, $path, 'upload')
+        my $file = $theme->path. '/' . $base_path . '/' . ($asset->{asset_path} ? ($asset->{asset_path} . '/') : '') . $asset->{file_name};
+        defined $fmgr->put( $file, $path, 'upload')
             or return $app->error(
-                $app->translate(
+                $plugin->translate(
                     'Failed to publish asset file [_1]',
                     $fmgr->errstr,
             ));
